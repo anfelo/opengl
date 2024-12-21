@@ -52,7 +52,7 @@ int main() {
     // build and compile our shader program
     // ------------------------------------
     // vertex shader
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
     glCompileShader(vertexShader);
     // check for shader compile errors
@@ -66,7 +66,7 @@ int main() {
     }
 
     // fragment shader
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
     glCompileShader(fragmentShader);
     // check for shader compile errors
@@ -78,7 +78,7 @@ int main() {
     }
 
     // link shaders
-    unsigned int shaderProgram = glCreateProgram();
+    GLuint shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
     glLinkProgram(shaderProgram);
@@ -92,17 +92,18 @@ int main() {
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
-
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
-    float vertices[] = {-0.5f, -0.5f, 0.0f, 0.5f, -0.5f,
-                        0.0f,  0.0f,  0.5f, 0.0f};
+    GLfloat vertices[] = {-0.5f, -0.5f, 0.0f, 0.5f, -0.5f,
+                          0.0f,  0.0f,  0.5f, 0.0f};
 
-    unsigned int VBO, VAO;
+    GLuint VBO, VAO;
+    // We specify that we only have 1 3D object
     glGenBuffers(1, &VBO);
     glGenVertexArrays(1, &VAO);
 
-    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
+    // bind the Vertex Array Object first, then bind and set vertex buffer(s),
+    // and then configure vertex attributes(s).
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
