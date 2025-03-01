@@ -69,16 +69,16 @@ const unsigned int SCREEN_WIDTH = 800;
 const unsigned int SCREEN_HEIGHT = 600;
 
 // stores how much we're seeing of either texture
-float mix_tex_value = 0.2f;
+float mixValue = 0.2f;
 
 // timing
-float delta_time = 0.0f; // time between current frame and last frame
-float last_frame = 0.0f;
+float deltaTime = 0.0f; // time between current frame and last frame
+float lastFrame = 0.0f;
 
 static camera_t camera;
-float last_x = SCREEN_WIDTH / 2.0f;
-float last_y = SCREEN_HEIGHT / 2.0f;
-bool first_click = true;
+float lastX = SCREEN_WIDTH / 2.0f;
+float lastY = SCREEN_HEIGHT / 2.0f;
+bool firstMouse = true;
 bool camera_rotation_enabled = false;
 
 int main() {
@@ -173,16 +173,16 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
         // per-frame time logic
         // --------------------
-        float current_frame = static_cast<float>(glfwGetTime());
-        delta_time = current_frame - last_frame;
-        last_frame = current_frame;
+        float currentFrame = static_cast<float>(glfwGetTime());
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
 
         process_input(window);
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // also clear the depth buffer now!
 
-        glUniform1f(tex_uniform_id, mix_tex_value);
+        glUniform1f(tex_uniform_id, mixValue);
 
         texture_bind(&texture1, GL_TEXTURE0);
         texture_bind(&texture2, GL_TEXTURE1);
@@ -230,66 +230,92 @@ void process_input(GLFWwindow *window) {
     }
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        camera_process_keyboard(&camera, FORWARD, delta_time);
+        camera_process_keyboard(&camera, FORWARD, deltaTime);
     }
 
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        camera_process_keyboard(&camera, BACKWARD, delta_time);
+        camera_process_keyboard(&camera, BACKWARD, deltaTime);
     }
 
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        camera_process_keyboard(&camera, LEFT, delta_time);
+        camera_process_keyboard(&camera, LEFT, deltaTime);
     }
 
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     {
-        camera_process_keyboard(&camera, RIGHT, delta_time);
+        camera_process_keyboard(&camera, RIGHT, deltaTime);
     }
 
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
     {
-        camera_process_keyboard(&camera, UP, delta_time);
+        camera_process_keyboard(&camera, UP, deltaTime);
     }
 
     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
     {
-        camera_process_keyboard(&camera, DOWN, delta_time);
+        camera_process_keyboard(&camera, DOWN, deltaTime);
     }
 
 
+    // INFO: Hide the mouse cursor on left mouse button click
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-        // INFO: Hide the mouse cursor on left mouse button click
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-        if (first_click) {
-            // Center the cursor and reset the last mouse position
+        if (firstMouse) {
             glfwSetCursorPos(window, (SCREEN_WIDTH / 2.0f), (SCREEN_HEIGHT / 2.0f));
-            last_x = SCREEN_WIDTH / 2.0f;
-            last_y = SCREEN_HEIGHT / 2.0f;
-            first_click = false;
+            firstMouse = false;
         }
 
         double mouse_x;
         double mouse_y;
         glfwGetCursorPos(window, &mouse_x, &mouse_y);
 
-        float xoffset = (float)(mouse_x) - last_x;
-        float yoffset = last_y - (float)(mouse_y);
+        if (firstMouse)
+        {
+            lastX = mouse_x;
+            lastY = mouse_y;
+            firstMouse = false;
+        }
 
-        last_x = mouse_x;
-        last_y = mouse_y;
+        float xoffset = mouse_x - lastX;
+        float yoffset = lastY - mouse_y; // reversed since y-coordinates go from bottom to top
 
-        camera_process_mouse_movement(&camera, xoffset, yoffset, true);
+        lastX = mouse_x;
+        lastY = mouse_y;
 
-        // Reset the mouse position and the last mouse position
-        // to calculate the next frame's delta
+        // camera_process_mouse_movement(&camera, xoffset, yoffset, true);
+        xoffset *= camera.mouse_sensitivity;
+        yoffset *= camera.mouse_sensitivity;
+
+        camera.yaw += xoffset;
+        camera.pitch += yoffset;
+
+        // make sure that when pitch is out of bounds, screen doesn't get flipped
+        if (camera.pitch > 89.0f) {
+            camera.pitch = 89.0f;
+        }
+        if (camera.pitch < -89.0f) {
+            camera.pitch = -89.0f;
+        }
+
+        glm::vec3 front;
+        front.x = cos(glm::radians(camera.yaw)) * cos(glm::radians(camera.pitch));
+        front.y = sin(glm::radians(camera.pitch));
+        front.z = sin(glm::radians(camera.yaw)) * cos(glm::radians(camera.pitch));
+        camera.front = glm::normalize(front);
+
+        // also re-calculate the Right and Up vector
+        // normalize the vectors, because their length gets
+        // closer to 0 the more you look up or down which
+        // results in slower movement.
+        camera.right = glm::normalize(glm::cross(camera.front, camera.world_up));
+        camera.up = glm::normalize(glm::cross(camera.right, camera.front));
+
         glfwSetCursorPos(window, (SCREEN_WIDTH / 2.0f), (SCREEN_HEIGHT / 2.0f));
-        last_x = SCREEN_WIDTH / 2.0f;
-        last_y = SCREEN_HEIGHT / 2.0f;
     }
     else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        first_click = true;
+        firstMouse = true;
     }
 }
 
@@ -304,18 +330,18 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
 
-    if (first_click)
+    if (firstMouse)
     {
-        last_x = xpos;
-        last_y = ypos;
-        first_click = false;
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
     }
 
-    float xoffset = xpos - last_x;
-    float yoffset = last_y - ypos; // reversed since y-coordinates go from bottom to top
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
 
-    last_x = xpos;
-    last_y = ypos;
+    lastX = xpos;
+    lastY = ypos;
 
     camera_process_mouse_movement(&camera, xoffset, yoffset, true);
 }

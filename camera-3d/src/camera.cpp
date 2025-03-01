@@ -37,6 +37,12 @@ float velocity = camera->movement_speed * deltaTime;
     if (direction == RIGHT) {
         camera->position += camera->right * velocity;
     }
+    if (direction == UP) {
+        camera->position += camera->up * velocity;
+    }
+    if (direction == DOWN) {
+        camera->position -= camera->up * velocity;
+    }
 }
 
 void camera_process_mouse_movement(camera_t *camera, float xoffset,
