@@ -1,3 +1,6 @@
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_glfw.h"
+#include "imgui/imgui_impl_opengl3.h"
 #include "camera.h"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/trigonometric.hpp"
@@ -69,6 +72,9 @@ bool camera_rotation_enabled = false;
 glm::vec3 light_pos(1.2f, 1.0f, 2.0f);
 float light_to_obj_radius = 1.2f;
 
+float object_color[4] = {1.0f, 0.5f, 0.31f, 1.0f};
+float light_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+
 int main() {
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -102,6 +108,15 @@ int main() {
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
+
+    // Setup Dear ImGui context
+    // -----------------------------
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
 
     shader_program_t lighting_shader_program;
     shader_program_create(&lighting_shader_program,
@@ -154,13 +169,18 @@ int main() {
 
         // input
         // --------------------
-        process_input(window);
+        if (!io.WantCaptureMouse) {
+            process_input(window);
+        }
 
         // render
         // --------------------
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT |
-                GL_DEPTH_BUFFER_BIT); // also clear the depth buffer now!
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
         shader_program_activate(&lighting_shader_program);
 
@@ -168,10 +188,12 @@ int main() {
                               glm::cos(glfwGetTime()) * light_to_obj_radius,
                               glm::sin(glfwGetTime()) * light_to_obj_radius);
 
-        glm::vec3 object_color = glm::vec3(1.0f, 0.5f, 0.31f);
-        glUniform3fv(object_color_uniform, 1, glm::value_ptr(object_color));
-        glm::vec3 light_color = glm::vec3(1.0f, 1.0f, 1.0f);
-        glUniform3fv(light_color_uniform, 1, glm::value_ptr(light_color));
+        glm::vec3 object_color_vec =
+            glm::vec3(object_color[0], object_color[1], object_color[2]);
+        glUniform3fv(object_color_uniform, 1, glm::value_ptr(object_color_vec));
+        glm::vec3 light_color_vec =
+            glm::vec3(light_color[0], light_color[1], light_color[2]);
+        glUniform3fv(light_color_uniform, 1, glm::value_ptr(light_color_vec));
         glUniform3fv(light_pos_uniform, 1, glm::value_ptr(light_pos));
         glUniform3fv(view_pos_uniform, 1, glm::value_ptr(camera.position));
 
@@ -217,9 +239,25 @@ int main() {
         VAO_bind(&light_cube_VAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+        ImGui::Begin("Properties");
+        ImGui::Text("Object");
+        ImGui::ColorEdit4("Object Color", object_color);
+        ImGui::Separator();
+        ImGui::Text("Light");
+        ImGui::ColorEdit4("Light Color", light_color);
+        ImGui::SliderFloat("Light Radius", &light_to_obj_radius, 1.2f, 5.0f);
+        ImGui::End();
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     VAO_delete(&light_cube_VAO);
     VAO_delete(&cube_VAO);

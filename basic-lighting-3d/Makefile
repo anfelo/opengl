@@ -1,6 +1,6 @@
 APP_NAME = LearnOpenGL
 BUILD_DIR = ./bin
-C_FILES = ./src/*.c ./src/*.cpp
+C_FILES = ./src/*.c ./src/*.cpp ./src/imgui/*.cpp
 CFLAGS = -Wall -g -std=c++17 
 
 APP_DEFINES:=
