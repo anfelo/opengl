@@ -78,6 +78,10 @@ bool camera_rotation_enabled = false;
 
 // lighting
 float light_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+float point0_light_color[4] = {0.05f, 0.05f, 0.05f, 1.0f};
+float point1_light_color[4] = {0.05f, 0.05f, 0.05f, 1.0f};
+float point2_light_color[4] = {0.05f, 0.05f, 0.05f, 1.0f};
+float point3_light_color[4] = {0.05f, 0.05f, 0.05f, 1.0f};
 
 int main() {
     glfwInit();
@@ -240,7 +244,8 @@ int main() {
         shader_set_float(&lighting_shader_program, "u_light.linear", 0.09f);
         shader_set_float(&lighting_shader_program, "u_light.quadratic", 0.032f);
         // directional light
-        glm::vec3 directional_light_dir = glm::vec3(-0.2f, -1.0f, -0.3f);
+        glm::vec3 directional_light_dir =
+            glm::vec3(light_color[0], light_color[1], light_color[2]);
         glm::vec3 directional_light_ambient = glm::vec3(0.05f, 0.05f, 0.05f);
         glm::vec3 directional_light_diffuse = glm::vec3(0.4f, 0.4f, 0.4f);
         glm::vec3 directional_light_specular = glm::vec3(0.5f, 0.5f, 0.5f);
@@ -254,7 +259,9 @@ int main() {
                         glm::value_ptr(directional_light_specular));
 
         // point light 1
-        glm::vec3 point0_light_ambient = glm::vec3(0.05f, 0.05f, 0.05f);
+        glm::vec3 point0_light_ambient =
+            glm::vec3(point0_light_color[0], point0_light_color[1],
+                      point0_light_color[2]);
         glm::vec3 point0_light_diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
         glm::vec3 point0_light_specular = glm::vec3(1.0f, 1.0f, 1.0f);
         shader_set_vec3(&lighting_shader_program, "u_point_lights[0].position",
@@ -273,7 +280,9 @@ int main() {
                          "u_point_lights[0].quadratic", 0.032f);
 
         // point light 2
-        glm::vec3 point1_light_ambient = glm::vec3(0.05f, 0.05f, 0.05f);
+        glm::vec3 point1_light_ambient =
+            glm::vec3(point1_light_color[0], point1_light_color[1],
+                      point1_light_color[2]);
         glm::vec3 point1_light_diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
         glm::vec3 point1_light_specular = glm::vec3(1.0f, 1.0f, 1.0f);
         shader_set_vec3(&lighting_shader_program, "u_point_lights[1].position",
@@ -292,7 +301,9 @@ int main() {
                          "u_point_lights[1].quadratic", 0.032f);
 
         // point light 3
-        glm::vec3 point2_light_ambient = glm::vec3(0.05f, 0.05f, 0.05f);
+        glm::vec3 point2_light_ambient =
+            glm::vec3(point2_light_color[0], point2_light_color[1],
+                      point2_light_color[2]);
         glm::vec3 point2_light_diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
         glm::vec3 point2_light_specular = glm::vec3(1.0f, 1.0f, 1.0f);
         shader_set_vec3(&lighting_shader_program, "u_point_lights[2].position",
@@ -311,7 +322,9 @@ int main() {
                          "u_point_lights[2].quadratic", 0.032f);
 
         // point light 4
-        glm::vec3 point3_light_ambient = glm::vec3(0.05f, 0.05f, 0.05f);
+        glm::vec3 point3_light_ambient =
+            glm::vec3(point3_light_color[0], point3_light_color[1],
+                      point3_light_color[2]);
         glm::vec3 point3_light_diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
         glm::vec3 point3_light_specular = glm::vec3(1.0f, 1.0f, 1.0f);
         shader_set_vec3(&lighting_shader_program, "u_point_lights[3].position",
@@ -408,6 +421,14 @@ int main() {
         ImGui::Begin("Properties");
         ImGui::Text("Light");
         ImGui::ColorEdit4("Light Color", light_color);
+        ImGui::Text("Point Light 1");
+        ImGui::ColorEdit4("Light Color 1", point0_light_color);
+        ImGui::Text("Point Light 2");
+        ImGui::ColorEdit4("Light Color 2", point1_light_color);
+        ImGui::Text("Point Light 3");
+        ImGui::ColorEdit4("Light Color 3", point2_light_color);
+        ImGui::Text("Point Light 4");
+        ImGui::ColorEdit4("Light Color 4", point3_light_color);
         ImGui::End();
 
         ImGui::Render();
