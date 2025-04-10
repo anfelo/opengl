@@ -2,16 +2,21 @@
 #define GAME_H_
 
 #include "VAO.h"
+#include "game_level.h"
 #include "resource_manager.h"
 #include "shader.h"
 #include "sprite_renderer.h"
 #include "texture.h"
+
 enum game_state_t { GAME_ACTIVE, GAME_MENU, GAME_WIN };
 
 typedef struct game_t {
     game_state_t state;
     bool keys[1024];
     unsigned int width, height;
+
+    std::vector<game_level_t> levels;
+    unsigned int level;
 
     resource_manager_t *resources;
     sprite_renderer_t *renderer;
