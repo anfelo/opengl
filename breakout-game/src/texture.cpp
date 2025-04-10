@@ -4,9 +4,6 @@ void texture_create(texture_t *tex, const char *texture_file, GLenum tex_type,
                     GLenum slot, GLenum format, GLenum pixel_type) {
     tex->type = tex_type;
 
-    // tell stb_image.h to flip loaded texture's on the y-axis.
-    stbi_set_flip_vertically_on_load(true);
-
     glGenTextures(1, &tex->ID);
     glActiveTexture(slot);
     glBindTexture(tex->type, tex->ID);
@@ -15,7 +12,7 @@ void texture_create(texture_t *tex, const char *texture_file, GLenum tex_type,
     // texture object)
     glTexParameteri(tex->type, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(tex->type, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(tex->type, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(tex->type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(tex->type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     // load and generate the texture
@@ -25,7 +22,6 @@ void texture_create(texture_t *tex, const char *texture_file, GLenum tex_type,
     if (data) {
         glTexImage2D(tex->type, 0, format, width, height, 0, format, pixel_type,
                      data);
-        glGenerateMipmap(tex->type);
     } else {
         std::cout << "Failed to load texture" << std::endl;
     }

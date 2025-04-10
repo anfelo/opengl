@@ -37,10 +37,10 @@ void game_init(game_t *game) {
                     GL_RGB, "background");
     rm_load_texture(game->resources, "./resources/textures/awesomeface.png",
                     GL_RGBA, "face");
-    rm_load_texture(game->resources, "./resources/textures/block.png", GL_RGBA,
+    rm_load_texture(game->resources, "./resources/textures/block.png", GL_RGB,
                     "block");
     rm_load_texture(game->resources, "./resources/textures/block_solid.png",
-                    GL_RGBA, "block_solid");
+                    GL_RGB, "block_solid");
     // load levels
     game_level_t test;
     game_level_load(game->resources, &test, "./resources/levels/test.lvl",
@@ -63,7 +63,7 @@ void game_init(game_t *game) {
     game->levels.push_back(two);
     game->levels.push_back(three);
     game->levels.push_back(four);
-    game->level = 0;
+    game->level = 1;
 }
 
 // game loop
