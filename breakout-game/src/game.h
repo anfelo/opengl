@@ -18,6 +18,8 @@ typedef struct game_t {
     std::vector<game_level_t> levels;
     unsigned int level;
 
+    game_object_t player;
+
     resource_manager_t *resources;
     sprite_renderer_t *renderer;
 } game_t;

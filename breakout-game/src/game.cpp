@@ -2,6 +2,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "game.h"
+#include "GLFW/glfw3.h"
 #include "resource_manager.h"
 #include "shader.h"
 #include "sprite_renderer.h"
@@ -41,10 +42,10 @@ void game_init(game_t *game) {
                     "block");
     rm_load_texture(game->resources, "./resources/textures/block_solid.png",
                     GL_RGB, "block_solid");
+    rm_load_texture(game->resources, "./resources/textures/paddle.png",
+                    GL_RGBA, "paddle");
+
     // load levels
-    game_level_t test;
-    game_level_load(game->resources, &test, "./resources/levels/test.lvl",
-                    game->width, game->height / 2);
     game_level_t one;
     game_level_load(game->resources, &one, "./resources/levels/one.lvl",
                     game->width, game->height / 2);
@@ -58,16 +59,39 @@ void game_init(game_t *game) {
     game_level_load(game->resources, &four, "./resources/levels/four.lvl",
                     game->width, game->height / 2);
 
-    game->levels.push_back(test);
     game->levels.push_back(one);
     game->levels.push_back(two);
     game->levels.push_back(three);
     game->levels.push_back(four);
-    game->level = 1;
+    game->level = 0;
+
+    game_object_t player;
+    glm::vec2 player_size = glm::vec2(100.0f, 20.0f);
+    float player_velocity = 500.0f;
+    glm::vec2 player_pos = glm::vec2(game->width / 2.0f - player_size.x / 2.0f,
+                                     game->height - player_size.y);
+    game_object_create(&player, player_pos, player_size, rm_get_texture(game->resources, "paddle"), glm::vec3(1.0f), glm::vec2(player_velocity, 0.0f));
+    game->player = player;
 }
 
 // game loop
-void game_process_input(game_t *game, float dt) {}
+void game_process_input(game_t *game, float dt) {
+    if (game->state == GAME_ACTIVE) {
+        float velocity = game->player.velocity.x * dt;
+        // move playerboard
+        if (game->keys[GLFW_KEY_A]) {
+            if (game->player.position.x >= 0.0f) {
+                game->player.position.x -= velocity;
+            }
+        }
+        if (game->keys[GLFW_KEY_D]) {
+            if (game->player.position.x <= game->width - game->player.size.x) {
+                game->player.position.x += velocity;
+            }
+        }
+    }
+}
+
 void game_update(game_t *game, float dt) {}
 
 void game_render(game_t *game) {
@@ -79,5 +103,8 @@ void game_render(game_t *game) {
 
         // draw level
         game_level_draw(game->renderer, &game->levels[game->level]);
+
+        // player
+        game_object_draw(game->renderer, &game->player);
     }
 }
