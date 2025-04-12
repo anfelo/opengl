@@ -2,6 +2,7 @@
 #define GAME_H_
 
 #include "VAO.h"
+#include "ball.h"
 #include "game_level.h"
 #include "resource_manager.h"
 #include "shader.h"
@@ -19,6 +20,7 @@ typedef struct game_t {
     unsigned int level;
 
     game_object_t player;
+    ball_t ball;
 
     resource_manager_t *resources;
     sprite_renderer_t *renderer;

@@ -3,6 +3,8 @@
 
 #include "game.h"
 #include "GLFW/glfw3.h"
+#include "ball.h"
+#include "game_object.h"
 #include "resource_manager.h"
 #include "shader.h"
 #include "sprite_renderer.h"
@@ -42,8 +44,8 @@ void game_init(game_t *game) {
                     "block");
     rm_load_texture(game->resources, "./resources/textures/block_solid.png",
                     GL_RGB, "block_solid");
-    rm_load_texture(game->resources, "./resources/textures/paddle.png",
-                    GL_RGBA, "paddle");
+    rm_load_texture(game->resources, "./resources/textures/paddle.png", GL_RGBA,
+                    "paddle");
 
     // load levels
     game_level_t one;
@@ -65,13 +67,27 @@ void game_init(game_t *game) {
     game->levels.push_back(four);
     game->level = 0;
 
+    // Init player paddle
     game_object_t player;
     glm::vec2 player_size = glm::vec2(100.0f, 20.0f);
     float player_velocity = 500.0f;
     glm::vec2 player_pos = glm::vec2(game->width / 2.0f - player_size.x / 2.0f,
                                      game->height - player_size.y);
-    game_object_create(&player, player_pos, player_size, rm_get_texture(game->resources, "paddle"), glm::vec3(1.0f), glm::vec2(player_velocity, 0.0f));
+    game_object_create(&player, player_pos, player_size,
+                       rm_get_texture(game->resources, "paddle"),
+                       glm::vec3(1.0f), glm::vec2(player_velocity, 0.0f));
     game->player = player;
+
+    // Init ball object
+    ball_t ball;
+    glm::vec2 ball_pos =
+        player_pos +
+        glm::vec2(player.size.x / 2.0f - BALL_RADIUS, -BALL_RADIUS * 2.0f);
+    glm::vec2 ball_velocity = INITIAL_BALL_VELOCITY;
+    ball_create(&ball, ball_pos, BALL_RADIUS,
+                rm_get_texture(game->resources, "face"), glm::vec3(1.0f),
+                ball_velocity);
+    game->ball = ball;
 }
 
 // game loop
@@ -89,10 +105,15 @@ void game_process_input(game_t *game, float dt) {
                 game->player.position.x += velocity;
             }
         }
+        if (game->keys[GLFW_KEY_SPACE]) {
+            game->ball.stuck = false;
+        }
     }
 }
 
-void game_update(game_t *game, float dt) {}
+void game_update(game_t *game, float dt) {
+    ball_update(&game->ball, dt, game->width);
+}
 
 void game_render(game_t *game) {
     if (game->state == GAME_ACTIVE) {
@@ -106,5 +127,8 @@ void game_render(game_t *game) {
 
         // player
         game_object_draw(game->renderer, &game->player);
+
+        // ball
+        game_object_draw(game->renderer, &game->ball.game_object);
     }
 }
