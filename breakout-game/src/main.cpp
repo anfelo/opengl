@@ -62,6 +62,8 @@ int main() {
     game.resources = &resources;
     sprite_renderer_t renderer;
     game.renderer = &renderer;
+    particle_generator_t pg;
+    game.particle_generator = &pg;
 
     game_init(&game);
 

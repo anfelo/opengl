@@ -96,9 +96,21 @@ void shader_set_int(shader_program_t *shader, const char *name, int value) {
     glUniform1i(glGetUniformLocation(shader->ID, name), value);
 }
 
+void shader_set_vec2(shader_program_t *shader, const char *name,
+                     glm::vec2 value) {
+    glUniform2fv(glGetUniformLocation(shader->ID, name), 1,
+                 glm::value_ptr(value));
+}
+
 void shader_set_vec3(shader_program_t *shader, const char *name,
                      glm::vec3 value) {
     glUniform3fv(glGetUniformLocation(shader->ID, name), 1,
+                 glm::value_ptr(value));
+}
+
+void shader_set_vec4(shader_program_t *shader, const char *name,
+                     glm::vec4 value) {
+    glUniform4fv(glGetUniformLocation(shader->ID, name), 1,
                  glm::value_ptr(value));
 }
 
