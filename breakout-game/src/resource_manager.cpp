@@ -24,8 +24,8 @@ shader_program_t *rm_get_shader(resource_manager_t *rm, std::string name) {
 void rm_load_texture(resource_manager_t *rm, const char *file, GLenum format,
                      std::string name) {
     texture_t texture;
-    texture_create(&texture, file, GL_TEXTURE_2D, GL_TEXTURE0, format,
-                   GL_UNSIGNED_BYTE);
+    texture_create(&texture);
+    texture_load(&texture, file, format == GL_RGBA);
     rm->textures[name] = texture;
 }
 

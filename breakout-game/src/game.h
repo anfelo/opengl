@@ -5,6 +5,7 @@
 #include "ball.h"
 #include "game_level.h"
 #include "particle_generator.h"
+#include "post_processor.h"
 #include "resource_manager.h"
 #include "shader.h"
 #include "sprite_renderer.h"
@@ -35,6 +36,7 @@ typedef struct game_t {
     resource_manager_t *resources;
     sprite_renderer_t *renderer;
     particle_generator_t *particle_generator;
+    post_processor_t *effects;
 } game_t;
 
 // game constructor

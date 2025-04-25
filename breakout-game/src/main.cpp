@@ -7,9 +7,6 @@
 
 #include <iostream>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void key_callback(GLFWwindow *window, int key, int scancode, int action,
                   int mode);
@@ -28,9 +25,10 @@ int main() {
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
+    glfwWindowHint(GLFW_RESIZABLE, false);
 
     GLFWwindow *window =
-        glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Breakout", NULL, NULL);
+        glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Breakout", nullptr, nullptr);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -64,6 +62,8 @@ int main() {
     game.renderer = &renderer;
     particle_generator_t pg;
     game.particle_generator = &pg;
+    post_processor_t effects;
+    game.effects = &effects;
 
     game_init(&game);
 

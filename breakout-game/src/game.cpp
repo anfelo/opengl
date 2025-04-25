@@ -6,9 +6,12 @@
 #include "ball.h"
 #include "game_object.h"
 #include "particle_generator.h"
+#include "post_processor.h"
 #include "resource_manager.h"
 #include "shader.h"
 #include "sprite_renderer.h"
+
+float shake_time = 0.0f;
 
 // game constructor
 void game_create(game_t *game, unsigned int width, unsigned int height) {
@@ -24,6 +27,9 @@ void game_init(game_t *game) {
                    "./resources/shaders/sprite.frag", nullptr, "sprite");
     rm_load_shader(game->resources, "./resources/shaders/particle.vert",
                    "./resources/shaders/particle.frag", nullptr, "particle");
+    rm_load_shader(game->resources, "./resources/shaders/post_processing.vert",
+                   "./resources/shaders/post_processing.frag", nullptr,
+                   "post_processing");
 
     shader_program_t *sprite_shader = rm_get_shader(game->resources, "sprite");
     shader_program_t *particle_shader =
@@ -59,6 +65,9 @@ void game_init(game_t *game) {
     sr_create(game->renderer, sprite_shader);
     particle_generator_create(game->particle_generator, particle_shader,
                               rm_get_texture(game->resources, "particle"), 500);
+    post_processor_create(game->effects,
+                          rm_get_shader(game->resources, "post_processing"),
+                          game->width, game->height);
 
     // load levels
     game_level_t one;
@@ -140,6 +149,14 @@ void game_update(game_t *game, float dt) {
                               &game->ball.game_object, 2,
                               glm::vec2(game->ball.radius / 2.0f));
 
+    // reduce shake time
+    if (shake_time > 0.0f) {
+        shake_time -= dt;
+        if (shake_time <= 0.0f) {
+            game->effects->shake = false;
+        }
+    }
+
     // check loss condition
     if (game->ball.game_object.position.y >= game->height) {
         game_reset_level(game);
@@ -149,6 +166,9 @@ void game_update(game_t *game, float dt) {
 
 void game_render(game_t *game) {
     if (game->state == GAME_ACTIVE) {
+        // begin rendering to postprocessing framebuffer
+        post_processor_begin_render(game->effects);
+
         // draw background
         texture_t *bg_texture = rm_get_texture(game->resources, "background");
         sr_draw_sprite(game->renderer, bg_texture, glm::vec2(0.0f, 0.0f),
@@ -166,6 +186,11 @@ void game_render(game_t *game) {
 
         // ball
         game_object_draw(game->renderer, &game->ball.game_object);
+
+        // end rendering to postprocessing framebuffer
+        post_processor_end_render(game->effects);
+        // render postprocessing quad
+        post_processor_render(game->effects, glfwGetTime());
     }
 }
 
@@ -216,6 +241,9 @@ void game_do_collisions(game_t *game) {
                 // destroy block if not solid
                 if (!box.is_solid) {
                     box.destroyed = true;
+                } else {
+                    shake_time = 0.05f;
+                    game->effects->shake = true;
                 }
                 // collision resolution
                 direction_t dir = collision.direction;
