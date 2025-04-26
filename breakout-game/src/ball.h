@@ -11,6 +11,7 @@ typedef struct ball_t {
     game_object_t game_object;
     float radius;
     bool stuck;
+    bool sticky, pass_through;
 } ball_t;
 
 void ball_create(ball_t *ball, glm::vec2 pos, float radius, texture_t *sprite,

@@ -7,6 +7,7 @@
 #include "game_object.h"
 #include "particle_generator.h"
 #include "post_processor.h"
+#include "powerup.h"
 #include "resource_manager.h"
 #include "shader.h"
 #include "sprite_renderer.h"
@@ -60,6 +61,20 @@ void game_init(game_t *game) {
                     "paddle");
     rm_load_texture(game->resources, "./resources/textures/particle.png",
                     GL_RGBA, "particle");
+    rm_load_texture(game->resources, "./resources/textures/powerup_speed.png",
+                    GL_RGBA, "powerup_speed");
+    rm_load_texture(game->resources, "./resources/textures/powerup_sticky.png",
+                    GL_RGBA, "powerup_sticky");
+    rm_load_texture(game->resources,
+                    "./resources/textures/powerup_increase.png", GL_RGBA,
+                    "powerup_increase");
+    rm_load_texture(game->resources, "./resources/textures/powerup_confuse.png",
+                    GL_RGBA, "powerup_confuse");
+    rm_load_texture(game->resources, "./resources/textures/powerup_chaos.png",
+                    GL_RGBA, "powerup_chaos");
+    rm_load_texture(game->resources,
+                    "./resources/textures/powerup_passthrough.png", GL_RGBA,
+                    "powerup_passthrough");
 
     // set render-specific controls
     sr_create(game->renderer, sprite_shader);
@@ -149,6 +164,8 @@ void game_update(game_t *game, float dt) {
                               &game->ball.game_object, 2,
                               glm::vec2(game->ball.radius / 2.0f));
 
+    game_update_powerups(game, dt);
+
     // reduce shake time
     if (shake_time > 0.0f) {
         shake_time -= dt;
@@ -179,6 +196,13 @@ void game_render(game_t *game) {
 
         // player
         game_object_draw(game->renderer, &game->player);
+
+        // draw powerups
+        for (powerup_t &powerup : game->powerups) {
+            if (!powerup.game_object.destroyed) {
+                game_object_draw(game->renderer, &powerup.game_object);
+            }
+        }
 
         // particles (particles are on top of all the other objects but
         // below the ball)
@@ -220,6 +244,7 @@ void game_reset_player(game_t *game) {
     game->player.position =
         glm::vec2(game->width / 2.0f - game->player.size.x / 2.0f,
                   game->height - game->player.size.y);
+    game->player.color = glm::vec3(1.0f);
 
     glm::vec2 ball_pos = game->player.position +
                          glm::vec2(game->player.size.x / 2.0f - BALL_RADIUS,
@@ -241,6 +266,7 @@ void game_do_collisions(game_t *game) {
                 // destroy block if not solid
                 if (!box.is_solid) {
                     box.destroyed = true;
+                    game_spawn_powerups(game, &box);
                 } else {
                     shake_time = 0.05f;
                     game->effects->shake = true;
@@ -248,37 +274,56 @@ void game_do_collisions(game_t *game) {
                 // collision resolution
                 direction_t dir = collision.direction;
                 glm::vec2 diff_vector = collision.diff_vec;
-                // horizontal collision
-                if (dir == LEFT || dir == RIGHT) {
-                    // reverse horizontal velocity
-                    game->ball.game_object.velocity.x =
-                        -game->ball.game_object.velocity.x;
-                    // relocate
-                    float penetration =
-                        game->ball.radius - std::abs(diff_vector.x);
-                    if (dir == LEFT) {
-                        // move ball to right
-                        game->ball.game_object.position.x += penetration;
+                // don't do collision resolution on non-solid bricks if
+                // pass-through is activated
+                if (!(game->ball.pass_through && !box.is_solid)) {
+                    // horizontal collision
+                    if (dir == LEFT || dir == RIGHT) {
+                        // reverse horizontal velocity
+                        game->ball.game_object.velocity.x =
+                            -game->ball.game_object.velocity.x;
+                        // relocate
+                        float penetration =
+                            game->ball.radius - std::abs(diff_vector.x);
+                        if (dir == LEFT) {
+                            // move ball to right
+                            game->ball.game_object.position.x += penetration;
+                        } else {
+                            // move ball to left;
+                            game->ball.game_object.position.x -= penetration;
+                        }
                     } else {
-                        // move ball to left;
-                        game->ball.game_object.position.x -= penetration;
-                    }
-                } else {
-                    // vertical collision
-                    // reverse vertical velocity
-                    game->ball.game_object.velocity.y =
-                        -game->ball.game_object.velocity.y;
-                    // relocate
-                    float penetration =
-                        game->ball.radius - std::abs(diff_vector.y);
-                    if (dir == UP) {
-                        // move ball back up
-                        game->ball.game_object.position.y -= penetration;
-                    } else {
-                        // move ball back down
-                        game->ball.game_object.position.y += penetration;
+                        // vertical collision
+                        // reverse vertical velocity
+                        game->ball.game_object.velocity.y =
+                            -game->ball.game_object.velocity.y;
+                        // relocate
+                        float penetration =
+                            game->ball.radius - std::abs(diff_vector.y);
+                        if (dir == UP) {
+                            // move ball back up
+                            game->ball.game_object.position.y -= penetration;
+                        } else {
+                            // move ball back down
+                            game->ball.game_object.position.y += penetration;
+                        }
                     }
                 }
+            }
+        }
+    }
+
+    for (powerup_t &powerup : game->powerups) {
+        if (!powerup.game_object.destroyed) {
+            if (powerup.game_object.position.y >= game->height) {
+                powerup.game_object.destroyed = true;
+            }
+
+            // collided with player, now activate powerup
+            if (check_collision_AABB_AABB(game->player, powerup.game_object)) {
+                game_activate_powerup(game, &powerup);
+                powerup.game_object.destroyed = true;
+                powerup.activated = true;
             }
         }
     }
@@ -309,6 +354,10 @@ void game_do_collisions(game_t *game) {
         // fix sticky paddle
         game->ball.game_object.velocity.y =
             -1.0f * abs(game->ball.game_object.velocity.y);
+
+        // if Sticky powerup is activated, also stick ball to paddle once new
+        // velocity vectors were calculated
+        game->ball.stuck = game->ball.sticky;
     }
 }
 
@@ -379,4 +428,147 @@ direction_t vector_direction(glm::vec2 target) {
         }
     }
     return (direction_t)best_match;
+}
+
+// Powerups
+static inline bool is_other_powerup_active(std::vector<powerup_t> &powerups,
+                                           std::string type) {
+    // Check if another PowerUp of the same type is still active
+    // in which case we don't disable its effect (yet)
+    for (const powerup_t &powerup : powerups) {
+        if (powerup.activated) {
+            if (powerup.type == type) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static inline bool should_spawn(unsigned int chance) {
+    unsigned int random = rand() % chance;
+    return random == 0;
+}
+
+void game_spawn_powerups(game_t *game, game_object_t *block) {
+    // 1 in 75 chance
+    if (should_spawn(75)) {
+        powerup_t powerup;
+        powerup_create(&powerup, "speed", glm::vec3(0.5f, 0.5f, 1.0f), 0.0f,
+                       block->position,
+                       rm_get_texture(game->resources, "powerup_speed"));
+        game->powerups.push_back(powerup);
+    }
+    if (should_spawn(75)) {
+        powerup_t powerup;
+        powerup_create(&powerup, "sticky", glm::vec3(1.0f, 0.5f, 1.0f), 20.0f,
+                       block->position,
+                       rm_get_texture(game->resources, "powerup_sticky"));
+        game->powerups.push_back(powerup);
+    }
+    if (should_spawn(75)) {
+        powerup_t powerup;
+        powerup_create(&powerup, "pass-through", glm::vec3(0.5f, 1.0f, 0.5f),
+                       10.0f, block->position,
+                       rm_get_texture(game->resources, "powerup_passthrough"));
+        game->powerups.push_back(powerup);
+    }
+    if (should_spawn(75)) {
+        powerup_t powerup;
+        powerup_create(&powerup, "pad-size-increase",
+                       glm::vec3(1.0f, 0.6f, 0.4f), 0.0f, block->position,
+                       rm_get_texture(game->resources, "powerup_increase"));
+        game->powerups.push_back(powerup);
+    }
+    // negative powerups should spawn more often
+    if (should_spawn(15)) {
+        powerup_t powerup;
+        powerup_create(&powerup, "confuse", glm::vec3(1.0f, 0.3f, 0.3f), 15.0f,
+                       block->position,
+                       rm_get_texture(game->resources, "powerup_confuse"));
+        game->powerups.push_back(powerup);
+    }
+    if (should_spawn(15)) {
+        powerup_t powerup;
+        powerup_create(&powerup, "chaos", glm::vec3(0.9f, 0.25f, 0.25f), 15.0f,
+                       block->position,
+                       rm_get_texture(game->resources, "powerup_chaos"));
+        game->powerups.push_back(powerup);
+    }
+}
+
+void game_update_powerups(game_t *game, float dt) {
+    for (powerup_t &powerup : game->powerups) {
+        powerup.game_object.position += powerup.game_object.velocity * dt;
+        if (powerup.activated) {
+            powerup.duration -= dt;
+
+            if (powerup.duration <= 0.0f) {
+                // remove powerup from list (will later be removed)
+                powerup.activated = false;
+                // deactivate effects
+                if (powerup.type == "sticky") {
+                    // only reset if no other powerup of
+                    // type sticky is active
+                    if (!is_other_powerup_active(game->powerups, "sticky")) {
+                        game->ball.sticky = false;
+                        game->player.color = glm::vec3(1.0f);
+                    }
+                } else if (powerup.type == "pass-through") {
+                    // only reset if no other powerup
+                    // of type pass-through is active
+                    if (!is_other_powerup_active(game->powerups,
+                                                 "pass-through")) {
+                        game->ball.pass_through = false;
+                        game->ball.game_object.color = glm::vec3(1.0f);
+                    }
+                } else if (powerup.type == "confuse") {
+                    // only reset if no other powerup of
+                    // type confuse is active
+                    if (!is_other_powerup_active(game->powerups, "confuse")) {
+                        game->effects->confuse = false;
+                    }
+                } else if (powerup.type == "chaos") {
+                    // only reset if no other powerup of
+                    // type chaos is active
+                    if (!is_other_powerup_active(game->powerups, "chaos")) {
+                        game->effects->chaos = false;
+                    }
+                }
+            }
+        }
+    }
+    // remove all powerups from vector that are destroyed and !activated (thus
+    // either off the map or finished) note we use a lambda expression to remove
+    // each powerup which is destroyed and not activated
+    game->powerups.erase(
+        std::remove_if(game->powerups.begin(), game->powerups.end(),
+                       [](const powerup_t &powerup) {
+                           return powerup.game_object.destroyed &&
+                                  !powerup.activated;
+                       }),
+        game->powerups.end());
+}
+
+void game_activate_powerup(game_t *game, powerup_t *powerup) {
+    if (powerup->type == "speed") {
+        game->ball.game_object.velocity *= 1.2;
+    } else if (powerup->type == "sticky") {
+        game->ball.sticky = true;
+        game->player.color = glm::vec3(1.0f, 0.5f, 1.0f);
+    } else if (powerup->type == "pass-through") {
+        game->ball.pass_through = true;
+        game->ball.game_object.color = glm::vec3(1.0f, 0.5f, 0.5f);
+    } else if (powerup->type == "pad-size-increase") {
+        game->player.size.x += 50;
+    } else if (powerup->type == "confuse") {
+        if (!game->effects->chaos) {
+            // only activate if chaos wasn't already active
+            game->effects->confuse = true;
+        }
+    } else if (powerup->type == "chaos") {
+        if (!game->effects->confuse) {
+            game->effects->chaos = true;
+        }
+    }
 }

@@ -6,6 +6,7 @@
 #include "game_level.h"
 #include "particle_generator.h"
 #include "post_processor.h"
+#include "powerup.h"
 #include "resource_manager.h"
 #include "shader.h"
 #include "sprite_renderer.h"
@@ -33,6 +34,8 @@ typedef struct game_t {
     game_object_t player;
     ball_t ball;
 
+    std::vector<powerup_t> powerups;
+
     resource_manager_t *resources;
     sprite_renderer_t *renderer;
     particle_generator_t *particle_generator;
@@ -52,5 +55,9 @@ void game_render(game_t *game);
 void game_do_collisions(game_t *game);
 void game_reset_level(game_t *game);
 void game_reset_player(game_t *game);
+// powerups management
+void game_spawn_powerups(game_t *game, game_object_t *block);
+void game_update_powerups(game_t *game, float dt);
+void game_activate_powerup(game_t *game, powerup_t *powerup);
 
 #endif
