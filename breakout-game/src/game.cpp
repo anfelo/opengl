@@ -4,6 +4,7 @@
 #include "game.h"
 #include "GLFW/glfw3.h"
 #include "ball.h"
+#include "game_level.h"
 #include "game_object.h"
 #include "particle_generator.h"
 #include "post_processor.h"
@@ -19,6 +20,7 @@ void game_create(game_t *game, unsigned int width, unsigned int height) {
     game->width = width;
     game->height = height;
     game->state = GAME_ACTIVE;
+    game->lives = GAME_LIVES;
 }
 
 // initialize game state (load all shaders/textures/levels)
@@ -31,14 +33,20 @@ void game_init(game_t *game) {
     rm_load_shader(game->resources, "./resources/shaders/post_processing.vert",
                    "./resources/shaders/post_processing.frag", nullptr,
                    "post_processing");
+    rm_load_shader(game->resources, "./resources/shaders/text_2d.vert",
+                   "./resources/shaders/text_2d.frag", nullptr, "text");
 
     shader_program_t *sprite_shader = rm_get_shader(game->resources, "sprite");
     shader_program_t *particle_shader =
         rm_get_shader(game->resources, "particle");
+    shader_program_t *text_shader = rm_get_shader(game->resources, "text");
 
     glm::mat4 projection =
         glm::ortho(0.0f, static_cast<float>(game->width),
                    static_cast<float>(game->height), 0.0f, -1.0f, 1.0f);
+    glm::mat4 text_projection =
+        glm::ortho(0.0f, static_cast<float>(game->width),
+                   static_cast<float>(game->height), 0.0f);
 
     shader_program_activate(sprite_shader);
     shader_set_int(sprite_shader, "u_image", 0);
@@ -47,6 +55,10 @@ void game_init(game_t *game) {
     shader_program_activate(particle_shader);
     shader_set_int(particle_shader, "u_sprite", 0);
     shader_set_mat4(particle_shader, "u_projection", projection);
+
+    shader_program_activate(text_shader);
+    shader_set_int(particle_shader, "u_text", 0);
+    shader_set_mat4(particle_shader, "u_projection", text_projection);
 
     // load textures
     rm_load_texture(game->resources, "./resources/textures/background.jpg",
@@ -83,6 +95,12 @@ void game_init(game_t *game) {
     post_processor_create(game->effects,
                           rm_get_shader(game->resources, "post_processing"),
                           game->width, game->height);
+
+    // text rendering loading
+    text_renderer_create(game->text_renderer, text_shader, game->width,
+                         game->height);
+    text_renderer_load(game->text_renderer, "./resources/fonts/ocraext.TTF",
+                       24);
 
     // load levels
     game_level_t one;
@@ -152,6 +170,32 @@ void game_process_input(game_t *game, float dt) {
             game->ball.stuck = false;
         }
     }
+    if (game->state == GAME_MENU) {
+        if (game->keys[GLFW_KEY_ENTER] &&
+            !game->keys_processed[GLFW_KEY_ENTER]) {
+            game->state = GAME_ACTIVE;
+            game->keys_processed[GLFW_KEY_ENTER] = true;
+        }
+        if (game->keys[GLFW_KEY_W] && !game->keys_processed[GLFW_KEY_W]) {
+            game->level = (game->level + 1) % 4;
+            game->keys_processed[GLFW_KEY_W] = true;
+        }
+        if (game->keys[GLFW_KEY_S] && !game->keys_processed[GLFW_KEY_S]) {
+            if (game->level > 0) {
+                game->level -= 1;
+            } else {
+                game->level = 3;
+            }
+            game->keys_processed[GLFW_KEY_S] = true;
+        }
+    }
+    if (game->state == GAME_WIN) {
+        if (game->keys[GLFW_KEY_ENTER]) {
+            game->keys_processed[GLFW_KEY_ENTER] = true;
+            game->effects->chaos = false;
+            game->state = GAME_MENU;
+        }
+    }
 }
 
 void game_update(game_t *game, float dt) {
@@ -174,15 +218,31 @@ void game_update(game_t *game, float dt) {
         }
     }
 
+    // check win condition
+    if (game->state == GAME_ACTIVE &&
+        game_level_is_complete(&game->levels[game->level])) {
+        game_reset_level(game);
+        game_reset_player(game);
+        game->effects->chaos = true;
+        game->state = GAME_WIN;
+    }
+
     // check loss condition
     if (game->ball.game_object.position.y >= game->height) {
-        game_reset_level(game);
+        game->lives -= 1;
+
+        if (game->lives == 0) {
+            game_reset_level(game);
+            game->state = GAME_MENU;
+        }
+
         game_reset_player(game);
     }
 }
 
 void game_render(game_t *game) {
-    if (game->state == GAME_ACTIVE) {
+    if (game->state == GAME_ACTIVE || game->state == GAME_MENU ||
+        game->state == GAME_WIN) {
         // begin rendering to postprocessing framebuffer
         post_processor_begin_render(game->effects);
 
@@ -211,10 +271,29 @@ void game_render(game_t *game) {
         // ball
         game_object_draw(game->renderer, &game->ball.game_object);
 
+        std::stringstream ss;
+        ss << game->lives;
+        render_text(game->text_renderer, "Lives:" + ss.str(), 5.0f, 5.0f, 1.0f,
+                    glm::vec3(1.0f));
+
         // end rendering to postprocessing framebuffer
         post_processor_end_render(game->effects);
         // render postprocessing quad
         post_processor_render(game->effects, glfwGetTime());
+    }
+    if (game->state == GAME_MENU) {
+        render_text(game->text_renderer, "Press ENTER to start", 250.0f,
+                    game->height / 2.0f, 1.0f, glm::vec3(1.0f));
+        render_text(game->text_renderer, "Press W or S to select level", 245.0f,
+                    game->height / 2.0f + 20.0f, 0.75f, glm::vec3(1.0f));
+    }
+    if (game->state == GAME_WIN) {
+        render_text(game->text_renderer, "You WON!!", 320.0f,
+                    game->height / 2.0f - 20.0f, 1.0f,
+                    glm::vec3(0.0f, 1.0f, 0.0f));
+        render_text(game->text_renderer, "Press ENTER to retry or ESC to quit",
+                    130.0f, game->height / 2.0f, 1.0f,
+                    glm::vec3(1.0f, 1.0f, 0.0f));
     }
 }
 
@@ -236,6 +315,9 @@ void game_reset_level(game_t *game) {
                         "./resources/levels/four.lvl", game->width,
                         game->height / 2);
     }
+
+    // Reset the game lives
+    game->lives = GAME_LIVES;
 }
 
 void game_reset_player(game_t *game) {

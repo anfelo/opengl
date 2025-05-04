@@ -38,7 +38,6 @@ void game_level_draw(sprite_renderer_t *renderer, game_level_t *level) {
 bool game_level_is_complete(game_level_t *level) {
     for (game_object_t tile : level->bricks) {
         if (!tile.is_solid && !tile.destroyed) {
-
             return false;
         }
     }

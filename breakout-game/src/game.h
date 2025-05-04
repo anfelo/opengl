@@ -10,7 +10,10 @@
 #include "resource_manager.h"
 #include "shader.h"
 #include "sprite_renderer.h"
+#include "text_renderer.h"
 #include "texture.h"
+
+#define GAME_LIVES 3
 
 // Represents the four possible (collision) directions
 typedef enum direction_t { UP, RIGHT, DOWN, LEFT } direction_t;
@@ -26,6 +29,7 @@ enum game_state_t { GAME_ACTIVE, GAME_MENU, GAME_WIN };
 typedef struct game_t {
     game_state_t state;
     bool keys[1024];
+    bool keys_processed[1024];
     unsigned int width, height;
 
     std::vector<game_level_t> levels;
@@ -35,11 +39,13 @@ typedef struct game_t {
     ball_t ball;
 
     std::vector<powerup_t> powerups;
+    unsigned int lives;
 
     resource_manager_t *resources;
     sprite_renderer_t *renderer;
     particle_generator_t *particle_generator;
     post_processor_t *effects;
+    text_renderer_t *text_renderer;
 } game_t;
 
 // game constructor

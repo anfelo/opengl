@@ -27,8 +27,8 @@ int main() {
 #endif
     glfwWindowHint(GLFW_RESIZABLE, false);
 
-    GLFWwindow *window =
-        glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Breakout", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT,
+                                          "Breakout", nullptr, nullptr);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -64,6 +64,8 @@ int main() {
     game.particle_generator = &pg;
     post_processor_t effects;
     game.effects = &effects;
+    text_renderer_t text_renderer;
+    game.text_renderer = &text_renderer;
 
     game_init(&game);
 
@@ -111,6 +113,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action,
             game.keys[key] = true;
         } else if (action == GLFW_RELEASE) {
             game.keys[key] = false;
+            game.keys_processed[key] = false;
         }
     }
 }
